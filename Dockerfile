@@ -52,8 +52,6 @@ RUN addgroup -g 2000 whack && adduser whack -u 2000 -g 2000 -S /bin/bash
 
 WORKDIR /tmp
 
-#RUN export ARCH=$(if [$TARGETARCH -eq "arm64"]; then echo "aarch64"; else echo "x86_64"; fi)
-
 RUN if [ "$TARGETARCH" == "arm64" ]; then wget "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -O "awscliv2.zip"; else wget "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip"; fi && \
     unzip awscliv2.zip && \
     ./aws/install && \
