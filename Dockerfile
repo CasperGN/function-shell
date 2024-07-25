@@ -44,21 +44,32 @@ RUN --mount=target=. \
     --mount=type=cache,target=/root/.cache/go-build \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /function .
 
-# Produce the Function image. We use a very lightweight 'distroless'
-# Python3 image that includes useful commands but not build tools used
-# in previous stages.
-# FROM python:3.12
-FROM gcr.io/distroless/python3-debian12 AS image
+FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/azure-cli AS whack
 
-WORKDIR /
-COPY --from=build --chown=2000:2000 /scripts /scripts
+ARG TARGETARCH
 
+RUN addgroup -g 2000 whack && adduser whack -u 2000 -g 2000 -S /bin/bash
+
+WORKDIR /tmp
+
+#RUN export ARCH=$(if [$TARGETARCH -eq "arm64"]; then echo "aarch64"; else echo "x86_64"; fi)
+
+RUN if [ "$TARGETARCH" == "arm64" ]; then wget "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -O "awscliv2.zip"; else wget "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip"; fi && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf /tmp/* 
+
+RUN mkdir /.azure && chown 2000: /.azure
+
+COPY --from=build /scripts /scripts
 COPY --from=build /bin /bin
 COPY --from=build /etc /etc
 COPY --from=build /lib /lib
 COPY --from=build /tmp /tmp
 COPY --from=build /usr /usr
 COPY --from=build /function /function
+
+WORKDIR /home
 EXPOSE 9443
-USER nonroot:nonroot
+USER 2000:2000
 ENTRYPOINT ["/function"]
